@@ -61,15 +61,25 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
             }
         };
 
+        const drawPoint = (idx: number, color: string = 'white', radius: number = 3) => {
+            const p = landmarks[idx];
+            if (p && (p.visibility ?? 1) > 0.5) {
+                ctx.fillStyle = color;
+                ctx.beginPath();
+                ctx.arc(p.x * w, p.y * h, radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        };
+
         const leftHip = landmarks[LANDMARKS.LEFT_HIP];
         const rightHip = landmarks[LANDMARKS.RIGHT_HIP];
         const leftShoulder = landmarks[LANDMARKS.LEFT_SHOULDER];
         const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
 
         // ===== 骨盆模拟 (Pelvis Simulation) =====
-        // const hipBias = 0.007;
-        // leftHip.x = leftHip.x * (1 + hipBias);
-        // rightHip.x = rightHip.x * (1 - hipBias);
+        const hipBias = 0.007;
+        leftHip.x = leftHip.x * (1 + hipBias);
+        rightHip.x = rightHip.x * (1 - hipBias);
         if (leftHip && rightHip &&
             (leftHip.visibility ?? 1) > 0.5 && (rightHip.visibility ?? 1) > 0.5) {
 
@@ -126,7 +136,7 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
             const hipMidX = (leftHip.x + rightHip.x) / 2;
             const torsoMidX = (shoulderMidX + hipMidX) / 2;
 
-            // 腰线宽度收缩系数（0.7表示腰线宽度为肩宽的70%）
+            // 腰线宽度收缩系数（0.5表示腰线宽度为肩宽的50%）
             const waistNarrowFactor = 0.5;
 
             const leftWaist: Point2D = {
@@ -177,6 +187,15 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
         drawLine(LANDMARKS.RIGHT_HIP, LANDMARKS.RIGHT_KNEE, '#60A5FA', 4);
         drawLine(LANDMARKS.RIGHT_KNEE, LANDMARKS.RIGHT_ANKLE, '#60A5FA', 4);
 
+        // Feet
+        drawLine(LANDMARKS.LEFT_ANKLE, LANDMARKS.LEFT_HEEL, '#34D399', 3);
+        drawLine(LANDMARKS.LEFT_HEEL, LANDMARKS.LEFT_FOOT_INDEX, '#34D399', 3);
+        drawLine(LANDMARKS.LEFT_ANKLE, LANDMARKS.LEFT_FOOT_INDEX, '#34D399', 3);
+
+        drawLine(LANDMARKS.RIGHT_ANKLE, LANDMARKS.RIGHT_HEEL, '#60A5FA', 3);
+        drawLine(LANDMARKS.RIGHT_HEEL, LANDMARKS.RIGHT_FOOT_INDEX, '#60A5FA', 3);
+        drawLine(LANDMARKS.RIGHT_ANKLE, LANDMARKS.RIGHT_FOOT_INDEX, '#60A5FA', 3);
+
         // ===== 上肢骨骼 =====
         drawLine(LANDMARKS.LEFT_SHOULDER, LANDMARKS.RIGHT_SHOULDER, '#FBBF24', 3);
         drawLine(LANDMARKS.LEFT_SHOULDER, LANDMARKS.LEFT_HIP, '#A78BFA', 2);
@@ -188,22 +207,33 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
         drawLine(LANDMARKS.RIGHT_SHOULDER, LANDMARKS.RIGHT_ELBOW, '#FB923C', 3);
         drawLine(LANDMARKS.RIGHT_ELBOW, LANDMARKS.RIGHT_WRIST, '#FB923C', 3);
 
-        // 颈部/头部
+        // Hands
+        drawLine(LANDMARKS.LEFT_WRIST, LANDMARKS.LEFT_THUMB, '#F472B6', 2);
+        drawLine(LANDMARKS.LEFT_WRIST, LANDMARKS.LEFT_PINKY, '#F472B6', 2);
+        drawLine(LANDMARKS.LEFT_WRIST, LANDMARKS.LEFT_INDEX, '#F472B6', 2);
+        drawLine(LANDMARKS.LEFT_INDEX, LANDMARKS.LEFT_PINKY, '#F472B6', 2); // Simple palm triangle
+
+        drawLine(LANDMARKS.RIGHT_WRIST, LANDMARKS.RIGHT_THUMB, '#FB923C', 2);
+        drawLine(LANDMARKS.RIGHT_WRIST, LANDMARKS.RIGHT_PINKY, '#FB923C', 2);
+        drawLine(LANDMARKS.RIGHT_WRIST, LANDMARKS.RIGHT_INDEX, '#FB923C', 2);
+        drawLine(LANDMARKS.RIGHT_INDEX, LANDMARKS.RIGHT_PINKY, '#FB923C', 2);
+
+        // ===== Face (Visualisation) =====
         const nose = landmarks[LANDMARKS.NOSE];
+        if (nose) {
+            drawPoint(LANDMARKS.NOSE, '#E0E7FF', 5);
 
-        if (nose && leftShoulder && rightShoulder &&
-            (nose.visibility ?? 1) > 0.5 &&
-            (leftShoulder.visibility ?? 1) > 0.5 &&
-            (rightShoulder.visibility ?? 1) > 0.5) {
-            const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
-            const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
-
-            ctx.beginPath();
-            ctx.moveTo(shoulderMidX * w, shoulderMidY * h);
-            ctx.lineTo(nose.x * w, nose.y * h);
-            ctx.strokeStyle = '#E0E7FF';
-            ctx.lineWidth = 2;
-            ctx.stroke();
+            // Neck connection
+            if (leftShoulder && rightShoulder) {
+                const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+                const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+                ctx.beginPath();
+                ctx.moveTo(shoulderMidX * w, shoulderMidY * h);
+                ctx.lineTo(nose.x * w, nose.y * h);
+                ctx.strokeStyle = '#E0E7FF';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
         }
     };
 

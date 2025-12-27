@@ -140,6 +140,8 @@ export const analyzeStandingFrame = (pose: PoseResult, timestamp: number, index:
     let riskScore = 0;
 
     const nose = landmarks[LANDMARKS.NOSE];
+    const leftEar = landmarks[LANDMARKS.LEFT_EAR];
+    const rightEar = landmarks[LANDMARKS.RIGHT_EAR];
     const leftShoulder = landmarks[LANDMARKS.LEFT_SHOULDER];
     const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
     const leftHip = landmarks[LANDMARKS.LEFT_HIP];
@@ -152,6 +154,15 @@ export const analyzeStandingFrame = (pose: PoseResult, timestamp: number, index:
         if (headOffset > 0.08) {
             issues.push('head_lateral_shift');
             riskScore += 2;
+        }
+    }
+
+    // New: Head Tilt using Ears
+    if (leftEar && rightEar) {
+        const earHeightDiff = Math.abs(leftEar.y - rightEar.y);
+        if (earHeightDiff > 0.04) {
+            issues.push('head_tilt');
+            riskScore += 1;
         }
     }
 
@@ -422,14 +433,19 @@ export const analyzeFrame = (
 ): FrameRisk => {
     switch (actionType) {
         case 'climbing':
+        case 'volleyball':
+        case 'martial_arts':
             return analyzeClimbingFrame(pose, timestamp, index);
         case 'standing':
             return analyzeStandingFrame(pose, timestamp, index);
         case 'single_leg_standing':
             return analyzeSingleLegFrame(pose, timestamp, index);
         case 'walking':
+        case 'running':
             return analyzeWalkingFrame(pose, timestamp, index);
         case 'squat':
+        case 'squat_exercise':
+        case 'strength':
             return analyzeSquatFrame(pose, timestamp, index);
         case 'arms_overhead':
             return analyzeArmsOverheadFrame(pose, timestamp, index);
