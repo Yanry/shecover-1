@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
-import type { ActionType, CameraAngle, ActionCategory, ExperienceLevel } from '../../../domain/analysis/types';
+import type { ActionType, CameraAngle, ExperienceLevel } from '../../../domain/analysis/types';
 
 interface VideoUploadProps {
     onFileSelect: (
@@ -10,14 +10,21 @@ interface VideoUploadProps {
         angle: CameraAngle,
         experienceLevel?: ExperienceLevel
     ) => void;
+    defaultAction?: ActionType;
 }
 
-export function VideoUpload({ onFileSelect }: VideoUploadProps) {
+export function VideoUpload({ onFileSelect, defaultAction }: VideoUploadProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [actionCategory, setActionCategory] = useState<ActionCategory>('basic_posture');
     const [actionType, setActionType] = useState<ActionType>('standing');
     const [cameraAngle, setCameraAngle] = useState<CameraAngle>('front');
     const [experienceLevel, setExperienceLevel] = useState<ExperienceLevel>('beginner');
+
+    // If defaultAction is provided, sync state with it
+    useEffect(() => {
+        if (defaultAction) {
+            setActionType(defaultAction);
+        }
+    }, [defaultAction]);
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -28,27 +35,27 @@ export function VideoUpload({ onFileSelect }: VideoUploadProps) {
                 url,
                 actionType,
                 cameraAngle,
-                actionCategory === 'professional' ? experienceLevel : undefined
+                experienceLevel
             );
         }
     };
 
-    const handleActionTypeChange = (type: ActionType, category: ActionCategory) => {
-        setActionType(type);
-        setActionCategory(category);
+    const isProfessional = ['climbing', 'volleyball', 'martial_arts'].includes(actionType);
+
+    // Type Labels map for display if pre-selected
+    const actionLabels: Record<string, string> = {
+        standing: '自然站立',
+        single_leg_standing: '单脚站立',
+        walking: '自然步行',
+        squat: '体态深蹲',
+        arms_overhead: '双手上举',
+        squat_exercise: '深蹲训练',
+        running: '跑步',
+        strength: '力量训练',
+        climbing: '攀岩',
+        volleyball: '排球',
+        martial_arts: '武术'
     };
-
-    const basicPostureActions = [
-        { value: 'standing' as ActionType, label: '自然站立', desc: '30秒 - 头部、肩膀、躯干对齐' },
-        { value: 'single_leg_standing' as ActionType, label: '单脚站立', desc: '30秒 - 骨盆稳定、平衡能力' },
-        { value: 'walking' as ActionType, label: '自然步行', desc: '10步 - 步态对称、髋膝稳定' },
-        { value: 'squat' as ActionType, label: '深蹲', desc: '5次 - 膝盖追踪、骨盆控制' },
-        { value: 'arms_overhead' as ActionType, label: '双手上举', desc: '30秒 - 肩膀灵活性、脊柱稳定' },
-    ];
-
-    const professionalActions = [
-        { value: 'climbing' as ActionType, label: '攀岩', desc: '完整动作 - Q角、ACL风险、动态平衡' },
-    ];
 
     const angleOptions = [
         { value: 'front' as CameraAngle, label: '正面' },
@@ -63,100 +70,27 @@ export function VideoUpload({ onFileSelect }: VideoUploadProps) {
 
     return (
         <div style={{ textAlign: 'left' }}>
-            {/* Category Selection */}
-            <div style={{ marginBottom: '24px' }}>
-                <h3 style={{ marginBottom: '12px', fontSize: '1.1rem' }}>动作分类</h3>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                    <button
-                        onClick={() => {
-                            setActionCategory('basic_posture');
-                            setActionType('standing');
-                        }}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: actionCategory === 'basic_posture' ? '2px solid var(--color-primary)' : '2px solid #E5E7EB',
-                            background: actionCategory === 'basic_posture' ? '#EEF2FF' : 'white',
-                            fontWeight: actionCategory === 'basic_posture' ? 600 : 400,
-                            color: actionCategory === 'basic_posture' ? 'var(--color-primary)' : '#374151',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        基础体态
-                    </button>
-                    <button
-                        onClick={() => {
-                            setActionCategory('professional');
-                            setActionType('climbing');
-                        }}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: actionCategory === 'professional' ? '2px solid var(--color-primary)' : '2px solid #E5E7EB',
-                            background: actionCategory === 'professional' ? '#EEF2FF' : 'white',
-                            fontWeight: actionCategory === 'professional' ? 600 : 400,
-                            color: actionCategory === 'professional' ? 'var(--color-primary)' : '#374151',
-                            cursor: 'pointer',
-                        }}
-                    >
-                        专业动作
-                    </button>
-                </div>
+            {/* If defaultAction is not provided, we might want to show selector, 
+                but based on new flow, we always pass defaultAction unless we are in standalone mode. 
+                For now, let's just show what is selected or hide it.
+                User flow says: Select in Menu -> Upload. 
+                So here we just confirm the details or verify angle/experience.
+            */}
 
-                {/* Action Type List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {actionCategory === 'basic_posture' && basicPostureActions.map((action) => (
-                        <button
-                            key={action.value}
-                            onClick={() => handleActionTypeChange(action.value, 'basic_posture')}
-                            style={{
-                                padding: '16px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: actionType === action.value ? '2px solid var(--color-primary)' : '2px solid #E5E7EB',
-                                background: actionType === action.value ? '#EEF2FF' : 'white',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                            }}
-                        >
-                            <div style={{ fontWeight: 600, color: actionType === action.value ? 'var(--color-primary)' : '#374151' }}>
-                                {action.label}
-                            </div>
-                            <div style={{ fontSize: '0.85rem', color: '#6B7280', marginTop: '4px' }}>
-                                {action.desc}
-                            </div>
-                        </button>
-                    ))}
-
-                    {actionCategory === 'professional' && professionalActions.map((action) => (
-                        <button
-                            key={action.value}
-                            onClick={() => handleActionTypeChange(action.value, 'professional')}
-                            style={{
-                                padding: '16px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: actionType === action.value ? '2px solid var(--color-primary)' : '2px solid #E5E7EB',
-                                background: actionType === action.value ? '#EEF2FF' : 'white',
-                                textAlign: 'left',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                            }}
-                        >
-                            <div style={{ fontWeight: 600, color: actionType === action.value ? 'var(--color-primary)' : '#374151' }}>
-                                {action.label}
-                            </div>
-                            <div style={{ fontSize: '0.85rem', color: '#6B7280', marginTop: '4px' }}>
-                                {action.desc}
-                            </div>
-                        </button>
-                    ))}
+            <div style={{ marginBottom: '24px', background: '#F3F4F6', padding: '16px', borderRadius: 'var(--radius-md)' }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1rem', color: '#666' }}>当前分析动作</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+                        {actionLabels[actionType] || actionType}
+                    </span>
+                    {/* Add a button to change action if needed? 
+                        The parent view has a "Back to Menu" button, so here we assume it's fixed. 
+                    */}
                 </div>
             </div>
 
             {/* Experience Level Selection (for professional actions only) */}
-            {actionCategory === 'professional' && (
+            {isProfessional && (
                 <div style={{ marginBottom: '24px', background: '#F9FAFB', padding: '16px', borderRadius: 'var(--radius-sm)' }}>
                     <h3 style={{ marginBottom: '12px', fontSize: '1.0rem' }}>运动经历时长</h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -239,9 +173,9 @@ export function VideoUpload({ onFileSelect }: VideoUploadProps) {
                 }}
             >
                 <div style={{ fontSize: '2rem', marginBottom: '16px' }}>📹</div>
-                <h3 style={{ marginBottom: '8px' }}>选择视频</h3>
+                <h3 style={{ marginBottom: '8px' }}>选择要分析的视频</h3>
                 <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>
-                    {actionCategory === 'basic_posture' ? '建议拍摄30秒静态视频' : '拍摄完整攀岩动作'}
+                    支持 MP4, MOV 格式
                     <br />
                     (推荐 10-40 秒)
                 </p>

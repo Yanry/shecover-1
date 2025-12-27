@@ -35,19 +35,27 @@ export const LANDMARKS = {
     RIGHT_FOOT_INDEX: 32,
 } as const;
 
-// Action Types - 重新分类
+// Action Types
 export type BasicPostureAction =
     | 'standing'           // 自然站立
     | 'single_leg_standing' // 单脚站立
     | 'walking'            // 自然步行
-    | 'squat'              // 深蹲
+    | 'squat'              // 深蹲 (Postural)
     | 'arms_overhead';     // 双手上举
 
-export type ProfessionalAction = 'climbing'; // 攀岩
+export type RoutineAction =
+    | 'squat_exercise'     // 深蹲训练
+    | 'running'            // 跑步
+    | 'strength';          // 力量训练
 
-export type ActionType = BasicPostureAction | ProfessionalAction;
+export type ProfessionalAction =
+    | 'climbing'           // 攀岩
+    | 'volleyball'         // 排球
+    | 'martial_arts';      // 武术
 
-export type ActionCategory = 'basic_posture' | 'professional';
+export type ActionType = BasicPostureAction | RoutineAction | ProfessionalAction;
+
+export type ActionCategory = 'basic_posture' | 'routine' | 'professional';
 
 // Camera Angles
 export type CameraAngle = 'front' | 'side';

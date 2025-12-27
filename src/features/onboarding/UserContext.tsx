@@ -2,11 +2,31 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 
 export type TrainingLevel = 'beginner' | 'intermediate' | 'advanced';
+export type AgeGroup = 'under_18' | '18_25' | '26_35' | '36_45' | '46_60' | 'over_60';
+export type MenstrualCyclePhase = 'follicular' | 'ovulation' | 'luteal' | 'menstrual' | 'irregular' | 'none';
+export type ExerciseFrequency = '0_1' | '2_3' | '4_5' | '6_plus';
+export type ExerciseType = 'running' | 'strength' | 'climbing' | 'ball_sports' | 'other';
+export type DominantSide = 'left' | 'right' | 'unsure';
+export type PainPart = 'knee' | 'ankle' | 'hip' | 'waist' | 'shoulder';
 
 export interface UserProfile {
     heightCm: number;
+    ageGroup?: AgeGroup;
+    menstrualCycle?: MenstrualCyclePhase;
+    exerciseFrequency?: ExerciseFrequency;
+    exerciseTypes: ExerciseType[];
+    dominantSide?: DominantSide;
+
+    // Injury / Risk Factors
+    hasInjury: boolean;
+    painParts: PainPart[];
+    painLevel?: number; // 1-10
+    isDiagnosed?: boolean;
+    diagnosisDetails?: string;
+
+    // Legacy/Other
+    injuries: string[]; // Keep for backward compat or general notes
     trainingLevel: TrainingLevel;
-    injuries: string[];
     isOnboardingComplete: boolean;
 }
 
@@ -18,9 +38,12 @@ interface UserContextType {
 }
 
 const DEFAULT_PROFILE: UserProfile = {
-    heightCm: 165, // Default average
-    trainingLevel: 'intermediate',
+    heightCm: 165,
+    exerciseTypes: [],
+    hasInjury: false,
+    painParts: [],
     injuries: [],
+    trainingLevel: 'intermediate',
     isOnboardingComplete: false,
 };
 

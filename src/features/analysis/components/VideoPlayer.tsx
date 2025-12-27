@@ -67,9 +67,9 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
         const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
 
         // ===== 骨盆模拟 (Pelvis Simulation) =====
-        const hipBias = 0.007;
-        leftHip.x = leftHip.x * (1 + hipBias);
-        rightHip.x = rightHip.x * (1 - hipBias);
+        // const hipBias = 0.007;
+        // leftHip.x = leftHip.x * (1 + hipBias);
+        // rightHip.x = rightHip.x * (1 - hipBias);
         if (leftHip && rightHip &&
             (leftHip.visibility ?? 1) > 0.5 && (rightHip.visibility ?? 1) > 0.5) {
 
@@ -233,12 +233,17 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
     }, [isPlaying, results, summary]);
 
     const actionLabels: Record<ActionType, string> = {
-        climbing: '攀岩',
         standing: '自然站立',
         single_leg_standing: '单脚站立',
         walking: '自然步行',
-        squat: '深蹲',
+        squat: '体态深蹲',
         arms_overhead: '双手上举',
+        squat_exercise: '深蹲训练',
+        running: '跑步',
+        strength: '力量训练',
+        climbing: '攀岩',
+        volleyball: '排球',
+        martial_arts: '武术'
     };
 
     return (
