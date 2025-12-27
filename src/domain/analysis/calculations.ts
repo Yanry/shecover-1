@@ -56,6 +56,30 @@ export const calculateKneeValgusOffset = (hip: Point2D, knee: Point2D, ankle: Po
     return distance;
 };
 
+/**
+ * Q-Angle Approximation (Female ACL Risk Indicator)
+ * True Q-angle: ASIS -> Patella Center -> Tibial Tuberosity
+ * MediaPipe Proxy: Hip -> Knee -> Ankle (frontal plane component)
+ * Female normal: 15-20°, >20° = higher ACL risk
+ */
+export const calculateQAngle = (hip: Point2D, knee: Point2D, ankle: Point2D): number => {
+    const khX = hip.x - knee.x;
+    const khY = hip.y - knee.y;
+    const kaX = ankle.x - knee.x;
+    const kaY = ankle.y - knee.y;
+
+    const dotProduct = khX * kaX + khY * kaY;
+    const magnitudeKH = Math.hypot(khX, khY);
+    const magnitudeKA = Math.hypot(kaX, kaY);
+
+    const cosAngle = dotProduct / (magnitudeKH * magnitudeKA);
+    const angleRad = Math.acos(Math.max(-1, Math.min(1, cosAngle)));
+    const angleDeg = (angleRad * 180) / Math.PI;
+
+    const qAngle = 180 - angleDeg;
+    return qAngle;
+};
+
 export const calculateMidpoint = (a: Point2D, b: Point2D): Point2D => {
     return {
         x: (a.x + b.x) / 2,

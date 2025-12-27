@@ -1,43 +1,40 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePoseAnalysis } from '../hooks/usePoseAnalysis';
 import { LANDMARKS } from '../../../domain/analysis/types';
-import type { Point2D } from '../../../domain/analysis/types';
+import type { Point2D, ActionType, CameraAngle, ExperienceLevel } from '../../../domain/analysis/types';
 import { analyzeFrame, summarizeAnalysis } from '../../../domain/analysis/RiskEngine';
 import type { AnalysisSummary } from '../../../domain/analysis/RiskEngine';
 import { InsightCard } from './InsightCard';
 
 interface VideoPlayerProps {
     videoUrl: string;
+    actionType: ActionType;
+    cameraAngle: CameraAngle;
+    experienceLevel?: ExperienceLevel;
 }
 
-export function VideoPlayer({ videoUrl }: VideoPlayerProps) {
+export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel }: VideoPlayerProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const { isReady, isAnalyzing, analyzeVideo, results, progress } = usePoseAnalysis();
     const [isPlaying, setIsPlaying] = useState(false);
     const [summary, setSummary] = useState<AnalysisSummary | null>(null);
 
-    // Auto-start analysis when ready
     useEffect(() => {
         if (isReady && videoRef.current && !isAnalyzing && results.length === 0) {
-            setTimeout(() => {
-                // Auto-analyze disabled to let user choose
-                // analyzeVideo(videoRef.current!);
-            }, 500);
+            setTimeout(() => { }, 500);
         }
     }, [isReady, isAnalyzing, results.length]);
 
-    // Compute summary when results are ready
     useEffect(() => {
         if (results.length > 0 && !isAnalyzing) {
             const riskFrames = results.map((pose, idx) =>
-                // Mock timestamp 30fps
-                analyzeFrame(pose, idx * 0.033, idx)
+                analyzeFrame(pose, idx * 0.033, idx, actionType)
             );
-            const computedSummary = summarizeAnalysis(riskFrames);
+            const computedSummary = summarizeAnalysis(riskFrames, actionType);
             setSummary(computedSummary);
         }
-    }, [results, isAnalyzing]);
+    }, [results, isAnalyzing, actionType]);
 
     const handleStartAnalysis = () => {
         if (videoRef.current) {
@@ -48,12 +45,13 @@ export function VideoPlayer({ videoUrl }: VideoPlayerProps) {
     const drawSkeleton = (ctx: CanvasRenderingContext2D, landmarks: Point2D[]) => {
         ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
+
         const drawLine = (idx1: number, idx2: number, color: string = 'white', width: number = 2) => {
             const p1 = landmarks[idx1];
             const p2 = landmarks[idx2];
             if (p1 && p2 && (p1.visibility ?? 1) > 0.5 && (p2.visibility ?? 1) > 0.5) {
-                const w = ctx.canvas.width;
-                const h = ctx.canvas.height;
                 ctx.beginPath();
                 ctx.moveTo(p1.x * w, p1.y * h);
                 ctx.lineTo(p2.x * w, p2.y * h);
@@ -63,15 +61,141 @@ export function VideoPlayer({ videoUrl }: VideoPlayerProps) {
             }
         };
 
-        // Visualization: Simplified Skeleton
+        const leftHip = landmarks[LANDMARKS.LEFT_HIP];
+        const rightHip = landmarks[LANDMARKS.RIGHT_HIP];
+        const leftShoulder = landmarks[LANDMARKS.LEFT_SHOULDER];
+        const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
+
+        // ===== 骨盆模拟 (Pelvis Simulation) =====
+        if (leftHip && rightHip &&
+            (leftHip.visibility ?? 1) > 0.5 && (rightHip.visibility ?? 1) > 0.5) {
+
+            // 1. 模拟耻骨点 (Simulated Pubic Symphysis)
+            const hipMidX = (leftHip.x + rightHip.x) / 2;
+            const hipMidY = (leftHip.y + rightHip.y) / 2;
+            const hipWidth = Math.abs(rightHip.x - leftHip.x);
+
+            const pubicBone: Point2D = {
+                x: hipMidX,
+                y: hipMidY + hipWidth * 0.18, // 向下约18%髋宽
+                visibility: Math.min(leftHip.visibility ?? 1, rightHip.visibility ?? 1)
+            };
+
+            // 2. 绘制骨盆三角形 (Pelvis Triangle)
+            ctx.globalAlpha = 0.25;
+            ctx.fillStyle = '#FBBF24'; // 金色填充
+            ctx.beginPath();
+            ctx.moveTo(leftHip.x * w, leftHip.y * h);
+            ctx.lineTo(rightHip.x * w, rightHip.y * h);
+            ctx.lineTo(pubicBone.x * w, pubicBone.y * h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+
+            // 3. 骨盆轮廓线 (Pelvis Outline)
+            ctx.strokeStyle = '#FBBF24';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(leftHip.x * w, leftHip.y * h);
+            ctx.lineTo(rightHip.x * w, rightHip.y * h);
+            ctx.lineTo(pubicBone.x * w, pubicBone.y * h);
+            ctx.closePath();
+            ctx.stroke();
+
+            // 4. 髋部横线加粗显示
+            drawLine(LANDMARKS.LEFT_HIP, LANDMARKS.RIGHT_HIP, '#FBBF24', 6);
+
+            // 5. 耻骨点标记
+            ctx.fillStyle = '#F59E0B';
+            ctx.beginPath();
+            ctx.arc(pubicBone.x * w, pubicBone.y * h, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // ===== 腰线可视化 (Waistline) =====
+        if (leftHip && rightHip && leftShoulder && rightShoulder &&
+            (leftShoulder.visibility ?? 1) > 0.5 && (rightShoulder.visibility ?? 1) > 0.5) {
+
+            const waistRatio = 0.35; // 从肩膀向下35%处
+
+            const leftWaist: Point2D = {
+                x: leftShoulder.x + (leftHip.x - leftShoulder.x) * waistRatio,
+                y: leftShoulder.y + (leftHip.y - leftShoulder.y) * waistRatio,
+            };
+
+            const rightWaist: Point2D = {
+                x: rightShoulder.x + (rightHip.x - rightShoulder.x) * waistRatio,
+                y: rightShoulder.y + (rightHip.y - rightShoulder.y) * waistRatio,
+            };
+
+            // 腰线内收可视化（粉色虚线）
+            ctx.strokeStyle = '#EC4899';
+            ctx.lineWidth = 4;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(leftWaist.x * w, leftWaist.y * h);
+            ctx.lineTo(rightWaist.x * w, rightWaist.y * h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 腰部标记点
+            ctx.fillStyle = '#EC4899';
+            ctx.beginPath();
+            ctx.arc(leftWaist.x * w, leftWaist.y * h, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(rightWaist.x * w, rightWaist.y * h, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 躯干轮廓填充
+            ctx.globalAlpha = 0.1;
+            ctx.fillStyle = '#A78BFA';
+            ctx.beginPath();
+            ctx.moveTo(leftShoulder.x * w, leftShoulder.y * h);
+            ctx.lineTo(rightShoulder.x * w, rightShoulder.y * h);
+            ctx.lineTo(rightHip.x * w, rightHip.y * h);
+            ctx.lineTo(leftHip.x * w, leftHip.y * h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
+        }
+
+        // ===== 下肢骨骼 =====
         drawLine(LANDMARKS.LEFT_HIP, LANDMARKS.LEFT_KNEE, '#34D399', 4);
         drawLine(LANDMARKS.LEFT_KNEE, LANDMARKS.LEFT_ANKLE, '#34D399', 4);
         drawLine(LANDMARKS.RIGHT_HIP, LANDMARKS.RIGHT_KNEE, '#60A5FA', 4);
         drawLine(LANDMARKS.RIGHT_KNEE, LANDMARKS.RIGHT_ANKLE, '#60A5FA', 4);
-        drawLine(LANDMARKS.LEFT_HIP, LANDMARKS.RIGHT_HIP, 'white', 2);
+
+        // ===== 上肢骨骼 =====
+        drawLine(LANDMARKS.LEFT_SHOULDER, LANDMARKS.RIGHT_SHOULDER, '#FBBF24', 3);
+        drawLine(LANDMARKS.LEFT_SHOULDER, LANDMARKS.LEFT_HIP, '#A78BFA', 2);
+        drawLine(LANDMARKS.RIGHT_SHOULDER, LANDMARKS.RIGHT_HIP, '#A78BFA', 2);
+
+        // 手臂
+        drawLine(LANDMARKS.LEFT_SHOULDER, LANDMARKS.LEFT_ELBOW, '#F472B6', 3);
+        drawLine(LANDMARKS.LEFT_ELBOW, LANDMARKS.LEFT_WRIST, '#F472B6', 3);
+        drawLine(LANDMARKS.RIGHT_SHOULDER, LANDMARKS.RIGHT_ELBOW, '#FB923C', 3);
+        drawLine(LANDMARKS.RIGHT_ELBOW, LANDMARKS.RIGHT_WRIST, '#FB923C', 3);
+
+        // 颈部/头部
+        const nose = landmarks[LANDMARKS.NOSE];
+
+        if (nose && leftShoulder && rightShoulder &&
+            (nose.visibility ?? 1) > 0.5 &&
+            (leftShoulder.visibility ?? 1) > 0.5 &&
+            (rightShoulder.visibility ?? 1) > 0.5) {
+            const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+            const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(shoulderMidX * w, shoulderMidY * h);
+            ctx.lineTo(nose.x * w, nose.y * h);
+            ctx.strokeStyle = '#E0E7FF';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
     };
 
-    // Render loop during playback
     useEffect(() => {
         if (!isPlaying || results.length === 0 || !videoRef.current || !canvasRef.current) return;
 
@@ -93,13 +217,49 @@ export function VideoPlayer({ videoUrl }: VideoPlayerProps) {
             }
             animationFrameId = requestAnimationFrame(render);
         };
-
         render();
         return () => cancelAnimationFrame(animationFrameId);
     }, [isPlaying, results, summary]);
 
+    const actionLabels: Record<ActionType, string> = {
+        climbing: '攀岩',
+        standing: '自然站立',
+        single_leg_standing: '单脚站立',
+        walking: '自然步行',
+        squat: '深蹲',
+        arms_overhead: '双手上举',
+    };
+
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{
+                    background: '#EEF2FF',
+                    color: 'var(--color-primary)',
+                    padding: '6px 12px',
+                    borderRadius: '12px',
+                    fontSize: '0.85rem',
+                    fontWeight: 600
+                }}>
+                    {actionLabels[actionType]}
+                </span>
+                <span style={{ fontSize: '0.85rem', color: '#6B7280' }}>
+                    {cameraAngle === 'front' ? '正面' : '侧面'}
+                </span>
+                {experienceLevel && (
+                    <span style={{
+                        background: '#FEF3C7',
+                        color: '#92400E',
+                        padding: '4px 10px',
+                        borderRadius: '10px',
+                        fontSize: '0.75rem',
+                        fontWeight: 500
+                    }}>
+                        {experienceLevel === 'beginner' ? '初学者' : experienceLevel === 'intermediate' ? '中级' : '高级'}
+                    </span>
+                )}
+            </div>
+
             <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', backgroundColor: 'black', aspectRatio: '9/16' }}>
                 <video
                     ref={videoRef}
@@ -127,7 +287,7 @@ export function VideoPlayer({ videoUrl }: VideoPlayerProps) {
                         alignItems: 'center', justifyContent: 'center', color: 'white'
                     }}>
                         <div style={{ fontSize: '2rem', marginBottom: '16px' }}>🧬</div>
-                        <h3>Reading Movement...</h3>
+                        <h3>正在分析动作...</h3>
                         <div style={{ width: '60%', height: '4px', background: 'rgba(255,255,255,0.2)', marginTop: '16px', borderRadius: '2px' }}>
                             <div style={{ width: `${progress}%`, height: '100%', background: 'var(--color-primary)', borderRadius: '2px', transition: 'width 0.2s' }} />
                         </div>
@@ -145,7 +305,7 @@ export function VideoPlayer({ videoUrl }: VideoPlayerProps) {
                         opacity: isReady ? 1 : 0.7
                     }}
                 >
-                    {isReady ? 'Analyze Movement' : 'Loading Vision Engine...'}
+                    {isReady ? '开始分析动作' : '加载视觉引擎中...'}
                 </button>
             )}
 

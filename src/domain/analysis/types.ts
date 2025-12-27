@@ -14,7 +14,7 @@ export interface PoseResult {
     worldLandmarks: Point2D[];
 }
 
-// MediaPipe Landmark Indices (Subset for readability)
+// MediaPipe Landmark Indices
 export const LANDMARKS = {
     NOSE: 0,
     LEFT_SHOULDER: 11,
@@ -34,6 +34,34 @@ export const LANDMARKS = {
     LEFT_FOOT_INDEX: 31,
     RIGHT_FOOT_INDEX: 32,
 } as const;
+
+// Action Types - 重新分类
+export type BasicPostureAction =
+    | 'standing'           // 自然站立
+    | 'single_leg_standing' // 单脚站立
+    | 'walking'            // 自然步行
+    | 'squat'              // 深蹲
+    | 'arms_overhead';     // 双手上举
+
+export type ProfessionalAction = 'climbing'; // 攀岩
+
+export type ActionType = BasicPostureAction | ProfessionalAction;
+
+export type ActionCategory = 'basic_posture' | 'professional';
+
+// Camera Angles
+export type CameraAngle = 'front' | 'side';
+
+// Experience Level (for professional actions)
+export type ExperienceLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export interface ActionConfig {
+    type: ActionType;
+    category: ActionCategory;
+    angle: CameraAngle;
+    duration?: number;
+    experienceLevel?: ExperienceLevel; // For professional actions
+}
 
 export type VisionError = {
     code: string;
