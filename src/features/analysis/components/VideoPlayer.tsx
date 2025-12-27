@@ -67,6 +67,9 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
         const rightShoulder = landmarks[LANDMARKS.RIGHT_SHOULDER];
 
         // ===== 骨盆模拟 (Pelvis Simulation) =====
+        const hipBias = 0.007;
+        leftHip.x = leftHip.x * (1 + hipBias);
+        rightHip.x = rightHip.x * (1 - hipBias);
         if (leftHip && rightHip &&
             (leftHip.visibility ?? 1) > 0.5 && (rightHip.visibility ?? 1) > 0.5) {
 
@@ -116,29 +119,49 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
         if (leftHip && rightHip && leftShoulder && rightShoulder &&
             (leftShoulder.visibility ?? 1) > 0.5 && (rightShoulder.visibility ?? 1) > 0.5) {
 
-            const waistRatio = 0.35; // 从肩膀向下35%处
+            const waistRatio = 0.7; // 从肩膀向下50%处（更接近髋部）
+
+            // 计算肩膀和髋部的中点X坐标
+            const shoulderMidX = (leftShoulder.x + rightShoulder.x) / 2;
+            const hipMidX = (leftHip.x + rightHip.x) / 2;
+            const torsoMidX = (shoulderMidX + hipMidX) / 2;
+
+            // 腰线宽度收缩系数（0.7表示腰线宽度为肩宽的70%）
+            const waistNarrowFactor = 0.5;
 
             const leftWaist: Point2D = {
-                x: leftShoulder.x + (leftHip.x - leftShoulder.x) * waistRatio,
+                x: torsoMidX + (leftShoulder.x - shoulderMidX) * waistNarrowFactor,
                 y: leftShoulder.y + (leftHip.y - leftShoulder.y) * waistRatio,
             };
 
             const rightWaist: Point2D = {
-                x: rightShoulder.x + (rightHip.x - rightShoulder.x) * waistRatio,
+                x: torsoMidX + (rightShoulder.x - shoulderMidX) * waistNarrowFactor,
                 y: rightShoulder.y + (rightHip.y - rightShoulder.y) * waistRatio,
             };
 
-            // 腰线内收可视化（粉色虚线）
-            ctx.strokeStyle = '#EC4899';
-            ctx.lineWidth = 4;
-            ctx.setLineDash([5, 5]);
+            // 上半身梯形（肩膀 → 腰部：上宽下窄）
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = '#A78BFA'; // 紫色
+            ctx.beginPath();
+            ctx.moveTo(leftShoulder.x * w, leftShoulder.y * h);
+            ctx.lineTo(rightShoulder.x * w, rightShoulder.y * h);
+            ctx.lineTo(rightWaist.x * w, rightWaist.y * h);
+            ctx.lineTo(leftWaist.x * w, leftWaist.y * h);
+            ctx.closePath();
+            ctx.fill();
+
+            // 下半身梯形（腰部 → 髋部：上窄下宽）
+            ctx.fillStyle = '#F59E0B'; // 金色/琥珀色
             ctx.beginPath();
             ctx.moveTo(leftWaist.x * w, leftWaist.y * h);
             ctx.lineTo(rightWaist.x * w, rightWaist.y * h);
-            ctx.stroke();
-            ctx.setLineDash([]);
+            ctx.lineTo(rightHip.x * w, rightHip.y * h);
+            ctx.lineTo(leftHip.x * w, leftHip.y * h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1.0;
 
-            // 腰部标记点
+            // 腰部标记点（保留用于显示腰线位置）
             ctx.fillStyle = '#EC4899';
             ctx.beginPath();
             ctx.arc(leftWaist.x * w, leftWaist.y * h, 3, 0, Math.PI * 2);
@@ -146,18 +169,6 @@ export function VideoPlayer({ videoUrl, actionType, cameraAngle, experienceLevel
             ctx.beginPath();
             ctx.arc(rightWaist.x * w, rightWaist.y * h, 3, 0, Math.PI * 2);
             ctx.fill();
-
-            // 躯干轮廓填充
-            ctx.globalAlpha = 0.1;
-            ctx.fillStyle = '#A78BFA';
-            ctx.beginPath();
-            ctx.moveTo(leftShoulder.x * w, leftShoulder.y * h);
-            ctx.lineTo(rightShoulder.x * w, rightShoulder.y * h);
-            ctx.lineTo(rightHip.x * w, rightHip.y * h);
-            ctx.lineTo(leftHip.x * w, leftHip.y * h);
-            ctx.closePath();
-            ctx.fill();
-            ctx.globalAlpha = 1.0;
         }
 
         // ===== 下肢骨骼 =====
